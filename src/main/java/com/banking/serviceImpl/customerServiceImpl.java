@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import com.banking.dao.CustomerRepository;
 import com.banking.dto.CustomerResponseDTO;
@@ -17,7 +18,7 @@ import com.banking.exception.CustomerNotFoundException;
 import com.banking.exception.CustomerStatusFoundException;
 import com.banking.model.Customer;
 import com.banking.service.CustomerService;
-
+@Service
 public class customerServiceImpl implements CustomerService{
 	
 	@Autowired
@@ -29,7 +30,7 @@ public class customerServiceImpl implements CustomerService{
 		customer.setFirstName(registerRequestDTO.getFirstName());
 		customer.setLastName(registerRequestDTO.getLastName());;
 		customer.setEmail(registerRequestDTO.getEmail());
-		customer.setMobileNo(registerRequestDTO.getMobileNumber());;
+		customer.setMobileNo(registerRequestDTO.getMobileNumber());
 		customer.setPassword(registerRequestDTO.getPassword());
 		customer.setDateOfBirth(registerRequestDTO.getDateOfBirth());
 		customer.setGender(registerRequestDTO.getGender());
@@ -38,8 +39,9 @@ public class customerServiceImpl implements CustomerService{
 		customer.setState(registerRequestDTO.getState());
 		customer.setAadharNumber(registerRequestDTO.getAadhaarNumber());
 		customer.setPanNumber(registerRequestDTO.getPanNumber());
-		customer.setRole(registerRequestDTO.getRole);
+		customer.setRole(registerRequestDTO.getRole());
 		customer.setStatus(CustomerStatus.ACTIVE);
+		customer.setPinCode(registerRequestDTO.getPinCode());
 		
 		customer.setCreatedAt(LocalDateTime.now());
 		customer.setUpdatedAt(LocalDateTime.now());
@@ -55,8 +57,8 @@ public class customerServiceImpl implements CustomerService{
 
 	@Override
 	public CustomerResponseDTO getCustomerById(Long customerId) {
-		Optional<Customer> byId = customerRepository.findById(customerId);
-		Customer customer = byId.get();
+		Customer customer = customerRepository.findById(customerId)
+				.orElseThrow(() -> new CustomerNotFoundException("No Customer not found with provided id : " + customerId));
 		
 		CustomerResponseDTO customerResponseDTO = new CustomerResponseDTO();
 		
@@ -67,22 +69,21 @@ public class customerServiceImpl implements CustomerService{
 	}
 
 	@Override
-	public ArrayList<CustomerResponseDTO> getCustomerByEmail(String email) {
+	public CustomerResponseDTO getCustomerByEmail(String email) {
 		
-		List<Customer> customerByEmail = customerRepository.findCustomerByEmail(email);
-		ArrayList<CustomerResponseDTO> responseList = new ArrayList<CustomerResponseDTO>();
+		Optional<Customer> customerByEmail = customerRepository.findByEmail(email);
 		
 		if(customerByEmail != null && !customerByEmail.isEmpty()) {
-			for(Customer customer : customerByEmail) {
 				CustomerResponseDTO responseDTO = new CustomerResponseDTO();
-				BeanUtils.copyProperties(customer, responseDTO);
-				responseList.add(responseDTO);
+				BeanUtils.copyProperties(customerByEmail.get(), responseDTO);
+				return responseDTO;
 			}
-			}
+			
 		else {
 			throw new CustomerNotFoundException("No Customer Has been found with the email you Provided : " + email);
+		
 		}
-		return responseList;
+		
 	}
 
 	@Override
@@ -110,7 +111,7 @@ public class customerServiceImpl implements CustomerService{
 		
 		if(byId.isPresent()) {
 			Customer customer2 = byId.get();
-			CustomerStatus customerStatus = customer.getStatus();
+			CustomerStatus customerStatus = customer2.getStatus();
 			if(customerStatus.equals(CustomerStatus.BLOCKED)) {
 				throw new CustomerStatusFoundException("The Status Of the customer is already in blocked Stage");
 				
@@ -152,14 +153,63 @@ public class customerServiceImpl implements CustomerService{
 
 	@Override
 	public CustomerResponseDTO updateCustomer(Long customerId, UpdateCustomerRequestDTO customerRequestDTO) {
-		Optional<Customer> byId = customerRepository.findById(customerId);
-		BeanUtils.copyProperties(byId, customerRequestDTO);
+		Customer customer = customerRepository.findById(customerId)
+				.orElseThrow(() -> new CustomerNotFoundException("No Customer have been found with provided Id : " + customerId));
 		
-		CustomerResponseDTO responseDTO = new CustomerResponseDTO();
-		
-		BeanUtils.copyProperties(byId, responseDTO);
+		BeanUtils.copyProperties(customerRequestDTO, customer);
+			
+		  Customer updatedCustomer = customerRepository.save(customer);
+
+		    CustomerResponseDTO responseDTO = new CustomerResponseDTO();
+
+		    BeanUtils.copyProperties(updatedCustomer, responseDTO);
 		
 		return responseDTO;
+	}
+
+	@Override
+	public String deleteCustomer(Long customerId) {
+		if(!customerRepository.existsById(customerId)) {
+			throw new CustomerNotFoundException("Customer Not Found with the given Id : " + customerId);
+		}else {
+			customerRepository.deleteById(customerId);
+			return "Customer with id : " + customerId + " have been deleted Sucessfully..!! ";
+		}
+	}
+
+	@Override
+	public CustomerResponseDTO getBlockedCustomerById(Long customerId) {
+		if(!customerRepository.existsById(customerId)){
+			throw new CustomerNotFoundException("Customer Not Found with the given Id : " + customerId);
+		}else {
+			Customer byId = customerRepository.findById(customerId).get();
+			if(byId.getStatus() != CustomerStatus.BLOCKED) {
+				throw new CustomerStatusFoundException("Customer Account is Not Blocked ");
+			}else {
+				
+			CustomerResponseDTO customerResponseDTO = new CustomerResponseDTO();
+			BeanUtils.copyProperties(byId, customerResponseDTO);
+		return customerResponseDTO ;
+		}
+		}
+	}
+
+	@Override
+	public List<CustomerResponseDTO> getAllBlockedCustomers() {
+		  List<Customer> allCustomers = customerRepository.findAll();
+		  
+		  List<CustomerResponseDTO>responseList = new ArrayList<CustomerResponseDTO>()	;
+		  for(Customer customer : allCustomers) {
+			  if(customer.getStatus() != CustomerStatus.BLOCKED) {
+				 throw new CustomerStatusFoundException("Customers Not Found");
+			  }else {
+				  CustomerResponseDTO customerResponseDTO = new  CustomerResponseDTO();
+				  BeanUtils.copyProperties(customerResponseDTO, allCustomers);
+				 responseList.add(customerResponseDTO);
+			  }
+		  }
+		  return responseList;
+
 	}
 
 }

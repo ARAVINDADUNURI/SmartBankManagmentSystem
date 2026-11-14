@@ -13,7 +13,7 @@ public interface CustomerService {
 	
 	public CustomerResponseDTO getCustomerById(Long customerId);
 	
-	public ArrayList<CustomerResponseDTO> getCustomerByEmail(String email);
+	public CustomerResponseDTO getCustomerByEmail(String email);
 	
 	public List<CustomerResponseDTO> getAllCustomers();
 	
@@ -23,6 +23,13 @@ public interface CustomerService {
 	
 	public CustomerResponseDTO unBlockCustomer(Long customerId);
 	
+	public String deleteCustomer(Long customerId);
+	
+	public CustomerResponseDTO getBlockedCustomerById(Long customerId);
+	
+	public List<CustomerResponseDTO> getAllBlockedCustomers();
+	
+		
 	
 
 }
